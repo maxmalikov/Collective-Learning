@@ -1,5 +1,6 @@
-from mesa import Agent
 import random
+from mesa import Agent
+from prettytable import PrettyTable
 
 class CollectiveAgent(Agent):
 
@@ -29,6 +30,19 @@ class CollectiveAgent(Agent):
         self.done_puzzles = 0
         self.reward_plot = 0
 
+    def __str__(self):
+        table = PrettyTable()
+        table.field_names = ["Property", "Value"]
+
+        table.add_row(["Agent ID", self.unique_id])
+        table.add_row(["Choice", self.choice])
+        table.add_row(["Strength", f"{self.strength:.3f}"])
+        table.add_row(["Stubbornness", f"{self.stubbornness:.3f}"])
+        table.add_row(["Solved puzzles", self.done_puzzles])
+        table.add_row(["Targets", self.targets])
+        table.add_row(["Guesses", self.guesses])
+
+        return table.get_string()
 
     def step(self):
         """
