@@ -1,23 +1,23 @@
-import random
+import numpy as np
 from mesa import Agent
 from prettytable import PrettyTable
 
 class CollectiveAgent(Agent):
 
-    def __init__(self, model):
+    def __init__(self, model, node, rng):
         super().__init__(model)
 
+        self.node = node
+
         # persuasion
-        self.strength = random.random()
+        self.strength = rng.random()
 
         # expertise for each choice
-        self.expertise_list = [random.random() for _ in range(model.n_choices)]
-
-        self.rewards_count = [0]*model.n_choices
-        self.rewards_avg = [0]*model.n_choices
-
-        self.stubbornness = 0
-        self.choice = random.randrange(model.n_choices)
+        self.expertise_list = rng.random(model.n_choices)
+        self.choice = np.argmax(self.expertise_list)
+        self.stubbornness = self.expertise_list[self.choice]
+        self.rewards_count = np.zeros(model.n_choices)
+        self.rewards_avg = np.zeros(model.n_choices)
 
         # puzzle state
         self.targets = []
@@ -48,26 +48,34 @@ class CollectiveAgent(Agent):
         """
         Equivalent to NetLogo turtle step.
         """
-        self.align_opinion()
-        self.solve_puzzle()
-
+        pass
 
     def align_opinion(self):
         """
         Implement the Nowak-Szamrej-Latane persuasion dynamics here.
+        Use experience-based stubbornness to determine the best choice.
         """
-        neighbors = self.model.grid.get_neighbors(self.pos, include_center=False)
+        neighbors = self.model.grid.get_neighbors(self.node, include_center=False)
 
-        influence = [0]*self.model.n_choices
+        influence = np.zeros(self.model.n_choices)
 
         for n in neighbors:
             influence[n.choice] += n.strength
 
-        best_choice = influence.index(max(influence))
+        modifier = 1 - self.expertise_list
+        influence *= modifier
+        influence += self.expertise_list
+        influence = self.robust_softmax(influence)
+        self.choice = np.argmax(influence)
+        self.stubbornness = self.expertise_list[self.choice]
 
-        if random.random() > self.stubbornness:
-            self.choice = best_choice
-
+    def robust_softmax(self, x):
+        """
+        Robust softmax function.
+        """
+        x = x - np.max(x)
+        exp_x = np.exp(x)
+        return exp_x / np.sum(exp_x)
 
     def solve_puzzle(self):
         """
