@@ -10,17 +10,26 @@ from agents_cl import CollectiveAgent
 
 class CollectiveLearningModel(Model):
 
-    def __init__(self, n_agents=50, n_choices=6):
+    def __init__(
+        self, 
+        n_agents=50, 
+        n_choices=6,
+        network_type="complete",
+        alignment_max_time=1,
+        consensus_threshold=0.9,
+        seed=42
+    ) -> None:
 
         super().__init__()
 
         self.num_agents = n_agents
         self.n_choices = n_choices
 
-        self.rng = np.random.default_rng(seed=42)
+        self.rng = np.random.default_rng(seed=seed)
+        self.seed = seed
 
         # globals for alignment phase
-        self.alignment_max_time = 100       
+        self.alignment_max_time = 1      
         self.consensus_threshold = 0.9
         self.alignment_time = 0
 
