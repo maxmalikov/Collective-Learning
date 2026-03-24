@@ -1,4 +1,5 @@
 import numpy as np
+import random
 from mesa import Agent
 from prettytable import PrettyTable
 
@@ -41,6 +42,7 @@ class CollectiveAgent(Agent):
         table.add_row(["Solved puzzles", self.done_puzzles])
         table.add_row(["Targets", self.targets])
         table.add_row(["Guesses", self.guesses])
+        table.add_row(["Expertise List", self.expertise_list])
 
         return table.get_string()
 
@@ -62,10 +64,11 @@ class CollectiveAgent(Agent):
         for n in neighbors:
             influence[n.choice] += n.strength
 
-        modifier = 1 - self.expertise_list
+        modifier = 1 - self.stubbornness
         influence *= modifier
-        influence += self.expertise_list
-        influence = self.robust_softmax(influence)
+        #influence += self.expertise_list
+        influence[self.choice] += self.stubbornness
+        #influence = self.robust_softmax(influence)
         self.choice = np.argmax(influence)
         self.stubbornness = self.expertise_list[self.choice]
 

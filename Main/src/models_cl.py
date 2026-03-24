@@ -17,7 +17,7 @@ class CollectiveLearningModel(Model):
         network_type="complete",
         alignment_max_time=1,
         consensus_threshold=0.9,
-        seed=42
+        seed=41
     ) -> None:
 
         super().__init__()
