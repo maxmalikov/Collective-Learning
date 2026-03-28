@@ -1,9 +1,12 @@
 import numpy as np
 import networkx as nx
+import random
 
 from mesa import Model
 from mesa.space import NetworkGrid
 from mesa.datacollection import DataCollector
+
+from collections import Counter
 
 from agents_cl import CollectiveAgent
 
@@ -15,8 +18,11 @@ class CollectiveLearningModel(Model):
         n_agents=50, 
         n_choices=6,
         network_type="complete",
+        scenario = "consensus",
         alignment_max_time=1,
         consensus_threshold=0.9,
+        alignment_threshold = 3, # default is 1/2 of the number of digits
+        work_duration = 30,
         seed=41
     ) -> None:
 
@@ -31,9 +37,13 @@ class CollectiveLearningModel(Model):
         # globals for alignment phase
         self.alignment_max_time = 1      
         self.consensus_threshold = 0.9
+        self.alignment_threshold = 3 # used to punish agents who do not align
         self.alignment_time = 0
+        self.scenario = "consensus"
 
         # globals for work phase
+        self.work_duration = 30
+        self.group_choice = None
         self.current_round = 0
         self.total_puzzles = 0
         self.total_time = 0
@@ -101,8 +111,23 @@ class CollectiveLearningModel(Model):
         else:
             raise ValueError(f"Invalid network type: {network_type}")
 
-    def generate_targets(self):
-        return [self.rng.randint(0,9) for _ in range(3)]
+    def update_group_choice(self):
+        if self.scenario == "consensus":
+            # collect choices
+            choices = [agent.choice for agent in self.agents_list]
+    
+            # compute mode(s)
+            counts = Counter(choices)
+            max_count = max(counts.values())
+            modes = [c for c, v in counts.items() if v == max_count]
+    
+            # NetLogo's one-of
+            self.group_choice = random.choice(modes)
+    
+        elif self.scenario in ["consultative", "autocratic"]:
+            # equivalent to turtle 0
+            leader = self.agents_list[0]   # assumes first agent is ID 0
+            self.group_choice = leader.choice
 
     def step(self):
         """
@@ -111,9 +136,10 @@ class CollectiveLearningModel(Model):
 
         self.current_round += 1
         self.alignment_phase()
+        self.update_group_choice()
         self.work_phase()
-
         self.datacollector.collect(self)
+        self.reset()
 
     def alignment_phase(self):
         """
@@ -146,7 +172,16 @@ class CollectiveLearningModel(Model):
         """
         Work phase.
         """
-        pass
+        for i in range(self.work_duration):
+            for agent in self.agents_list:
+                agent.solve_puzzle()
+                
+    def reset(self):
+        """
+        resetting the agent values and model values before next round
+        """
+        for agent in self.agents_list:
+            agent.reset_values()
 
     def calculate_consensus(self):
         """
