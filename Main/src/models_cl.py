@@ -48,6 +48,9 @@ class CollectiveLearningModel(Model):
         self.total_puzzles = 0
         self.total_time = 0
         self.salary = 1
+        
+        # learning
+        self.explore_param = 2
 
         # network
         self.G = self.create_network(network_type="complete")
@@ -138,6 +141,7 @@ class CollectiveLearningModel(Model):
         self.alignment_phase()
         self.update_group_choice()
         self.work_phase()
+        self.learn_phase()
         self.datacollector.collect(self)
         self.reset()
 
@@ -175,6 +179,14 @@ class CollectiveLearningModel(Model):
         for i in range(self.work_duration):
             for agent in self.agents_list:
                 agent.solve_puzzle()
+                
+    def learn_phase(self):
+        """
+        Learn phase.
+        """
+        for agent in self.agents_list:
+            agent.update_reward(agent.done_puzzles)
+                
                 
     def reset(self):
         """

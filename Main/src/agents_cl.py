@@ -76,7 +76,53 @@ class CollectiveAgent(Agent):
         """
         placeholder
         """        
-        pass
+        
+        # UPDATE SELF CHOICE
+        self.expertise_list = self.get_stubbornness_vector()
+        self.choice = np.random.choice(self.model.n_choices, p = self.expertise_list)
+        
+        # expertise for each choice
+        self.stubbornness = self.expertise_list[self.choice]
+
+        # puzzle state
+        self.targets = []
+        self.guesses = []
+        self.memories = []
+        self.done_flags = []
+
+        self.done_count = 0
+        self.needs_new = True
+        self.reward_plot = self.done_puzzles # storing done puzzles for plotting
+        self.done_puzzles = 0
+
+        
+    
+    def get_ucb_value(self, option):
+        n = self.rewards_count[option]
+    
+        # if never chosen
+        if n == 0:
+            n = 1
+    
+        t = np.sum(self.rewards_count) + 1
+    
+        return self.model.explore_param * np.sqrt(np.log(t) / n)
+    
+    def get_stubbornness_vector(self):
+
+        values = np.zeros(self.model.n_choices)
+    
+        for i in range(self.model.n_choices):
+            reward_instance = self.rewards_avg[i]
+    
+            # fallback for zero reward
+            if reward_instance == 0:
+                reward_instance = self.model.work_duration / 6 # min expected reward rate TODO
+                # reward_instance = 1
+    
+            values[i] = reward_instance + self.get_ucb_value(i)
+    
+        return self.robust_softmax(values)
 
     def robust_softmax(self, x):
         """
@@ -85,6 +131,18 @@ class CollectiveAgent(Agent):
         x = x - np.max(x)
         exp_x = np.exp(x)
         return exp_x / np.sum(exp_x)
+    
+    def update_reward(self, reward):
+        i = self.choice
+    
+        current_count = self.rewards_count[i]
+        self.rewards_count[i] += 1
+    
+        n = current_count + 1
+        current_value = self.rewards_avg[i]
+    
+        # incremental average
+        self.rewards_avg[i] = current_value + (reward - current_value) / n
 
     def solve_puzzle_old(self):
         """
@@ -104,6 +162,7 @@ class CollectiveAgent(Agent):
         if self.done_count == len(self.targets):
             self.done_puzzles += 1
             self.needs_new = True
+            self.done_count = 0
 
 
     def start_new_puzzle(self):
