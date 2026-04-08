@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 import random
+import matplotlib.pyplot as plt
 
 from mesa import Model
 from mesa.space import NetworkGrid
@@ -23,6 +24,7 @@ class CollectiveLearningModel(Model):
         consensus_threshold=0.9,
         alignment_threshold = 3, # default is 1/2 of the number of digits
         work_duration = 30,
+        num_digits = 6,
         seed=41
     ) -> None:
 
@@ -30,6 +32,7 @@ class CollectiveLearningModel(Model):
 
         self.num_agents = n_agents
         self.n_choices = n_choices
+        self.num_digits = num_digits
 
         self.rng = np.random.default_rng(seed=seed)
         self.seed = seed
@@ -63,6 +66,7 @@ class CollectiveLearningModel(Model):
             a = CollectiveAgent(
                 model=self,
                 node=node,
+                num_digits=self.num_digits,
                 rng=self.rng
             )
             self.agents_list.append(a)
@@ -114,38 +118,20 @@ class CollectiveLearningModel(Model):
         else:
             raise ValueError(f"Invalid network type: {network_type}")
 
-    def update_group_choice(self):
-        if self.scenario == "consensus":
-            # collect choices
-            choices = [agent.choice for agent in self.agents_list]
-    
-            # compute mode(s)
-            counts = Counter(choices)
-            max_count = max(counts.values())
-            modes = [c for c, v in counts.items() if v == max_count]
-    
-            # NetLogo's one-of
-            self.group_choice = random.choice(modes)
-    
-        elif self.scenario in ["consultative", "autocratic"]:
-            # equivalent to turtle 0
-            leader = self.agents_list[0]   # assumes first agent is ID 0
-            self.group_choice = leader.choice
-
     def step(self):
         """
         Equivalent to NetLogo 'go'
         """
 
-        self.current_round += 1
         self.alignment_phase()
         self.update_group_choice()
         self.work_phase()
         self.learn_phase()
+        self.current_round += 1
         self.datacollector.collect(self)
         self.reset()
 
-    def alignment_phase(self):
+    def alignment_phase(self) -> None:
         """
         Align the opinions of the agents.
         """
@@ -161,16 +147,37 @@ class CollectiveLearningModel(Model):
             for agent in self.agents_list:
                 agent.align_opinion()
 
-            if self.alignment_time >= self.alignment_max_time:
-                run_alignment = False
-                break
-
             consensus = self.calculate_consensus()
+
             if consensus >= self.consensus_threshold:
                 run_alignment = False
-                break
 
-        return self.alignment_time
+            if self.alignment_time >= self.alignment_max_time:
+                run_alignment = False
+
+    def update_group_choice(self) -> None:
+        """
+        Update the group choice.
+        """
+        if self.scenario == "consensus":
+            # collect choices
+            choices = [agent.choice for agent in self.agents_list]
+    
+            # compute mode(s)
+            counts = Counter(choices)
+            max_count = max(counts.values())
+            modes = [c for c, v in counts.items() if v == max_count]
+    
+            # NetLogo's one-of
+            self.group_choice = self.rng.choice(modes)
+    
+        elif self.scenario in ["consultative", "autocratic"]:
+            # equivalent to turtle 0
+            leader = self.agents_list[0]   # assumes first agent is ID 0
+            self.group_choice = leader.choice
+
+        else:
+            raise ValueError(f"Invalid scenario: {self.scenario}")
 
     def work_phase(self):
         """
@@ -186,8 +193,8 @@ class CollectiveLearningModel(Model):
         """
         for agent in self.agents_list:
             agent.update_reward(agent.done_puzzles)
-                
-                
+            agent.update_choice()
+            
     def reset(self):
         """
         resetting the agent values and model values before next round
@@ -195,7 +202,7 @@ class CollectiveLearningModel(Model):
         for agent in self.agents_list:
             agent.reset_values()
 
-    def calculate_consensus(self):
+    def calculate_consensus(self) -> float:
         """
         Calculate the consensus of the agents.
         """
@@ -206,8 +213,6 @@ class CollectiveLearningModel(Model):
         Plot ``self.G``. Nodes are colored by each agent's current ``choice``.
         Dense graphs use a circular layout; sparser graphs use a spring layout.
         """
-        import matplotlib.pyplot as plt
-
         G = self.G
         if ax is None:
             _, ax = plt.subplots(figsize=figsize)

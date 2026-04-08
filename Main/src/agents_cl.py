@@ -5,10 +5,12 @@ from prettytable import PrettyTable
 
 class CollectiveAgent(Agent):
 
-    def __init__(self, model, node, rng):
+    def __init__(self, model, node, num_digits, rng):
         super().__init__(model)
 
         self.node = node
+        self.rng = rng
+        self.num_digits = num_digits
 
         # persuasion
         self.strength = rng.random()
@@ -17,7 +19,7 @@ class CollectiveAgent(Agent):
         self.expertise_list = rng.random(model.n_choices)
         self.choice = np.argmax(self.expertise_list)
         self.stubbornness = self.expertise_list[self.choice]
-        self.rewards_count = np.zeros(model.n_choices)
+        self.choices_count = np.zeros(model.n_choices)
         self.rewards_avg = np.zeros(model.n_choices)
 
         # puzzle state
@@ -30,6 +32,8 @@ class CollectiveAgent(Agent):
         self.needs_new = True
         self.done_puzzles = 0
         self.reward_plot = 0
+
+        self.debug_mode = False
 
     def __str__(self):
         table = PrettyTable()
@@ -95,16 +99,14 @@ class CollectiveAgent(Agent):
         self.reward_plot = self.done_puzzles # storing done puzzles for plotting
         self.done_puzzles = 0
 
-        
-    
     def get_ucb_value(self, option):
-        n = self.rewards_count[option]
+        n = self.choices_count[option]
     
         # if never chosen
         if n == 0:
             n = 1
     
-        t = np.sum(self.rewards_count) + 1
+        t = np.sum(self.choices_count) + 1
     
         return self.model.explore_param * np.sqrt(np.log(t) / n)
     
@@ -135,14 +137,13 @@ class CollectiveAgent(Agent):
     def update_reward(self, reward):
         i = self.choice
     
-        current_count = self.rewards_count[i]
-        self.rewards_count[i] += 1
+        self.choices_count[i] += 1
     
-        n = current_count + 1
+        current_count = self.choices_count[i]
         current_value = self.rewards_avg[i]
     
         # incremental average
-        self.rewards_avg[i] = current_value + (reward - current_value) / n
+        self.rewards_avg[i] += (reward - current_value) / current_count
 
     def solve_puzzle_old(self):
         """
@@ -164,7 +165,6 @@ class CollectiveAgent(Agent):
             self.needs_new = True
             self.done_count = 0
 
-
     def start_new_puzzle(self):
         self.targets = self.model.generate_targets()
         self.guesses = []
@@ -174,17 +174,17 @@ class CollectiveAgent(Agent):
     def solve_puzzle(self):
         # initialize puzzle if needed
         if self.needs_new:
-            self.targets = [random.randint(0, 9) for _ in range(6)]
-            self.guesses = [None] * 6
-            self.memories = [[] for _ in range(6)]
-            self.done_flags = [False] * 6
+            self.targets = [self.rng.randint(0, 9) for _ in range(self.num_digits)]
+            self.guesses = [None] * self.num_digits
+            self.memories = [[] for _ in range(self.num_digits)]
+            self.done_flags = [False] * self.num_digits
             self.done_count = 0
             self.needs_new = False
     
         group_choice = self.model.group_choice
         alignment_threshold = self.model.alignment_threshold
     
-        for i in range(6):
+        for i in range(self.num_digits):
             if self.done_flags[i]:
                 continue
     
@@ -232,11 +232,11 @@ class CollectiveAgent(Agent):
             # filter available digits
             available = [x for x in available if x not in mem]
     
-            if not available:
-                continue
+            if len(available) == 0:
+                raise ValueError(f"No available digits for digit {i}")
     
             # make a guess
-            guess = random.choice(available)
+            guess = self.rng.choice(available)
             self.guesses[i] = guess
             mem.append(guess)
     
@@ -264,11 +264,12 @@ class CollectiveAgent(Agent):
             self.memories[i] = mem
             
         # check output
-        if self.unique_id == 1:
-            print(self)
-    
+        if self.debug_mode:
+            if self.unique_id == 1:
+                print(self)
+
         # check completion
-        if self.done_count == 6:
+        if self.done_count == self.num_digits:
             self.done_count = 0
             self.needs_new = True
             self.done_puzzles += 1
