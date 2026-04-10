@@ -145,26 +145,6 @@ class CollectiveAgent(Agent):
         # incremental average
         self.rewards_avg[i] += (reward - current_value) / current_count
 
-    def solve_puzzle_old(self):
-        """
-        Guessing / reward learning part.
-        """
-        if self.needs_new:
-            self.start_new_puzzle()
-
-        # placeholder guess logic
-        guess = random.randint(0,9)
-
-        self.guesses.append(guess)
-
-        if guess in self.targets:
-            self.done_count += 1
-
-        if self.done_count == len(self.targets):
-            self.done_puzzles += 1
-            self.needs_new = True
-            self.done_count = 0
-
     def start_new_puzzle(self):
         self.targets = self.model.generate_targets()
         self.guesses = []
