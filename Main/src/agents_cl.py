@@ -38,7 +38,7 @@ class CollectiveAgent(Agent):
         self.reward_plot = 0
 
         self.debug_mode = False
-        self.sampling = True
+        self.sampling = False
 
     def __str__(self):
         table = PrettyTable()
@@ -68,28 +68,28 @@ class CollectiveAgent(Agent):
         """
         neighbors = self.model.grid.get_neighbors(self.node, include_center=False)
 
-        influence = np.zeros(self.model.n_choices)
+        impact = np.zeros(self.model.n_choices)
 
         for n in neighbors:
-            influence[n.choice] += n.strength
+            impact[n.choice] += n.strength
 
         modifier = 1 - self.stubbornness
-        influence *= modifier
-        # influence += self.expertise_list
-        influence[self.choice] += self.stubbornness
-        influence = self.robust_softmax(influence)
-        self.choice = self.influence_choice(influence)
+        impact *= modifier
+        # impact += self.expertise_list
+        impact[self.choice] += self.stubbornness
+        impact = self.robust_softmax(impact)
+        self.choice = self.impact_choice(impact)
         self.stubbornness = self.expertise_list[self.choice]
 
-    def influence_choice(self, influence:List[float]) -> int:
+    def impact_choice(self, impact:List[float]) -> int:
         if self.sampling is True:
             return self.rng_.choice(
                 np.arange(self.n_choices),
                 size=1,
-                p=influence
+                p=impact
             )[0]
         else:
-            return np.argmax(influence)
+            return np.argmax(impact)
 
     def reset_values(self):
         """
@@ -146,6 +146,7 @@ class CollectiveAgent(Agent):
         Robust softmax function.
         """
         x = x - np.max(x)
+        # x *= x * 1 / self.model.temperature
         exp_x = np.exp(x)
         return exp_x / np.sum(exp_x)
     
