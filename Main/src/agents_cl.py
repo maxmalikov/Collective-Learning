@@ -1,7 +1,10 @@
 import numpy as np
 import random
+
 from mesa import Agent
 from prettytable import PrettyTable
+from typing import List
+
 
 class CollectiveAgent(Agent):
 
@@ -16,11 +19,12 @@ class CollectiveAgent(Agent):
         self.strength = rng.random()
 
         # expertise for each choice
-        self.expertise_list = rng.random(model.n_choices)
+        self.n_choices = model.n_choices
+        self.expertise_list = rng.random(self.n_choices)
         self.choice = np.argmax(self.expertise_list)
         self.stubbornness = self.expertise_list[self.choice]
-        self.choices_count = np.zeros(model.n_choices)
-        self.rewards_avg = np.zeros(model.n_choices)
+        self.choices_count = np.zeros(self.n_choices)
+        self.rewards_avg = np.zeros(self.n_choices)
 
         # puzzle state
         self.targets = []
@@ -34,6 +38,7 @@ class CollectiveAgent(Agent):
         self.reward_plot = 0
 
         self.debug_mode = False
+        self.sampling = True
 
     def __str__(self):
         table = PrettyTable()
@@ -70,12 +75,22 @@ class CollectiveAgent(Agent):
 
         modifier = 1 - self.stubbornness
         influence *= modifier
-        #influence += self.expertise_list
+        # influence += self.expertise_list
         influence[self.choice] += self.stubbornness
-        #influence = self.robust_softmax(influence)
-        self.choice = np.argmax(influence)
+        influence = self.robust_softmax(influence)
+        self.choice = self.influence_choice(influence)
         self.stubbornness = self.expertise_list[self.choice]
-        
+
+    def influence_choice(self, influence:List[float]) -> int:
+        if self.sampling is True:
+            return self.rng_.choice(
+                np.arange(self.n_choices),
+                size=1,
+                p=influence
+            )[0]
+        else:
+            return np.argmax(influence)
+
     def reset_values(self):
         """
         placeholder
@@ -83,7 +98,7 @@ class CollectiveAgent(Agent):
         
         # UPDATE SELF CHOICE
         self.expertise_list = self.get_stubbornness_vector()
-        self.choice = np.random.choice(self.model.n_choices, p = self.expertise_list)
+        self.choice = np.random.choice(np.arange(self.model.n_choices), p = self.expertise_list)
         
         # expertise for each choice
         self.stubbornness = self.expertise_list[self.choice]
@@ -151,10 +166,13 @@ class CollectiveAgent(Agent):
         self.done_count = 0
         self.needs_new = False
         
+    def update_choice(self):
+        pass
+
     def solve_puzzle(self):
         # initialize puzzle if needed
         if self.needs_new:
-            self.targets = [self.rng_.randint(0, 9) for _ in range(self.num_digits)]
+            self.targets = [self.rng_.integers(0, 9, 1) for _ in range(self.num_digits)]
             self.guesses = [None] * self.num_digits
             self.memories = [[] for _ in range(self.num_digits)]
             self.done_flags = [False] * self.num_digits

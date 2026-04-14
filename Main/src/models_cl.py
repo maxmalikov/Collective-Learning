@@ -18,8 +18,7 @@ class CollectiveLearningModel(Model):
         self, 
         n_agents=50, 
         n_choices=6,
-        network_type="complete",
-        scenario = "consensus",
+        network_type="consensus",
         alignment_max_time=1,
         consensus_threshold=0.9,
         alignment_threshold = 3, # default is 1/2 of the number of digits
@@ -38,14 +37,14 @@ class CollectiveLearningModel(Model):
         self.seed = seed
 
         # globals for alignment phase
-        self.alignment_max_time = 1      
-        self.consensus_threshold = 0.9
-        self.alignment_threshold = 3 # used to punish agents who do not align
+        self.alignment_max_time = alignment_max_time      
+        self.consensus_threshold = consensus_threshold
+        self.alignment_threshold = alignment_threshold # used to punish agents who do not align
         self.alignment_time = 0
-        self.scenario = "consensus"
+        self.network_type = network_type
 
         # globals for work phase
-        self.work_duration = 30
+        self.work_duration = work_duration
         self.group_choice = None
         self.current_round = 0
         self.total_puzzles = 0
@@ -75,7 +74,9 @@ class CollectiveLearningModel(Model):
         self.datacollector = DataCollector(
 
             model_reporters={
+                "Scenario": lambda m: m.network_type,
                 "Round": lambda m: m.current_round,
+                "Alignment_round": lambda m: m.alignment_time,
                 "Total_Puzzles": lambda m: m.total_puzzles,
                 "Total_Time": lambda m: m.total_time,
 
@@ -89,11 +90,12 @@ class CollectiveLearningModel(Model):
             },
 
             agent_reporters={
+                "node": "node",
                 "Choice": "choice",
                 "Strength": "strength",
                 "Stubbornness": "stubbornness",
                 "Solved": "done_puzzles",
-                "Reward": "reward_plot"
+                "Reward": "reward_plot",
             }
         )
 
@@ -128,7 +130,7 @@ class CollectiveLearningModel(Model):
         self.work_phase()
         self.learn_phase()
         self.current_round += 1
-        self.datacollector.collect(self)
+        # self.datacollector.collect(self)
         self.reset()
 
     def alignment_phase(self) -> None:
@@ -155,11 +157,13 @@ class CollectiveLearningModel(Model):
             if self.alignment_time >= self.alignment_max_time:
                 run_alignment = False
 
+            self.datacollector.collect(self)
+
     def update_group_choice(self) -> None:
         """
         Update the group choice.
         """
-        if self.scenario == "consensus":
+        if self.network_type == "consensus":
             # collect choices
             choices = [agent.choice for agent in self.agents_list]
     
@@ -171,13 +175,13 @@ class CollectiveLearningModel(Model):
             # NetLogo's one-of
             self.group_choice = self.rng.choice(modes)
     
-        elif self.scenario in ["consultative", "autocratic"]:
+        elif self.network_type in ["consultative", "autocratic"]:
             # equivalent to turtle 0
             leader = self.agents_list[0]   # assumes first agent is ID 0
             self.group_choice = leader.choice
 
         else:
-            raise ValueError(f"Invalid scenario: {self.scenario}")
+            raise ValueError(f"Invalid scenario: {self.network_type}")
 
     def work_phase(self):
         """
