@@ -32,7 +32,7 @@ class CollectiveLearningModel(Model):
         self.num_agents = n_agents
         self.n_choices = n_choices
         self.num_digits = num_digits
-
+        self.agents_Pre_reset = None
         self.rng = np.random.default_rng(seed=seed)
         self.seed = seed
 
@@ -131,6 +131,10 @@ class CollectiveLearningModel(Model):
         self.learn_phase()
         self.current_round += 1
         # self.datacollector.collect(self)
+        self.agents_Pre_reset = {i.unique_id: [i.node,i.choice] for i in self.agents}
+        l = []
+        for a in self.agents_Pre_reset:
+            l.append(self.agents_Pre_reset[a][1])
         self.reset()
 
     def alignment_phase(self) -> None:
@@ -229,7 +233,13 @@ class CollectiveLearningModel(Model):
         )
 
         node_list = list(G.nodes())
-        choice_by_node = {a.node: float(a.choice) for a in self.agents}
+        if self.agents_Pre_reset == None:
+            choice_by_node = {a.node: float(a.choice) for a in self.agents}
+        else:
+            choice_by_node = {self.agents_Pre_reset[a][0]: float(self.agents_Pre_reset[a][1]) for a in self.agents_Pre_reset}
+            l = []
+            for a in self.agents_Pre_reset:
+                l.append(self.agents_Pre_reset[a][1])
         colors = [choice_by_node[node] for node in node_list]
 
         lw = float(np.clip(400 / max(m, 1), 0.02, 1.0))
