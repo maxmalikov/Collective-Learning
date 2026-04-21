@@ -66,18 +66,27 @@ class CollectiveAgent(Agent):
         Implement the Nowak-Szamrej-Latane persuasion dynamics here.
         Use experience-based stubbornness to determine the best choice.
         """
-        neighbors = self.model.grid.get_neighbors(self.node, include_center=False)
-
+        # Initialize impact vector
         impact = np.zeros(self.model.n_choices)
 
+        # Get neighbors and calculate impact based on their choices and strengths
+        neighbors = self.model.grid.get_neighbors(self.node, include_center=False)
         for n in neighbors:
             impact[n.choice] += n.strength
 
+        # Compare impact with own choice and strength
         modifier = 1 - self.stubbornness
         impact *= modifier
-        # impact += self.expertise_list
         impact[self.choice] += self.stubbornness
+        print("-"*60)
+        print(f"Agent {self.node} (stubbornness: {self.stubbornness:.3f}) --- (strength: {self.strength:.3f}) --- (neighbors: {len(neighbors)}):")
+        print(f"\tImpacts before softmax: {impact}")
+
+        # Create probability distribution over choices using robust softmax
         impact = self.robust_softmax(impact)
+        print(f"\tImpacts after softmax: {impact}")
+
+        # Update choice and stubbornness based on impact
         self.choice = self.impact_choice(impact)
         self.stubbornness = self.expertise_list[self.choice]
 

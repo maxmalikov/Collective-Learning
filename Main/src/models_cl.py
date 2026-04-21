@@ -55,7 +55,14 @@ class CollectiveLearningModel(Model):
         self.explore_param = 2
 
         # network
-        self.G = self.create_network(network_type="complete")
+        if self.network_type == "consensus":
+            self.G = self.create_network(topology="complete")
+        elif self.network_type == "consultative":
+            self.G = self.create_network(topology="star")
+        elif self.network_type == "autocratic":
+            self.G = self.create_network(topology="star") # <= add unidirectionality in the grid
+        else:
+            raise ValueError(f"Invalid scenario: {self.network_type}")
         self.grid = NetworkGrid(self.G)
 
         # create agents
@@ -99,26 +106,18 @@ class CollectiveLearningModel(Model):
             }
         )
 
-    def create_network(self, network_type="watts_strogatz"):
+    def create_network(self, topology="watts_strogatz"):
         """
         Create a network of the agents.
         """
-        if network_type == "watts_strogatz":
-            return nx.watts_strogatz_graph(self.num_agents, 4, 0.1)
-        elif network_type == "complete":
+        if topology == "complete":
             return nx.complete_graph(self.num_agents)
-        elif network_type == "star":
-            return nx.star_graph(self.num_agents)
-        elif network_type == "wheel":
-            return nx.wheel_graph(self.num_agents)
-        elif network_type == "tree":
-            return nx.tree_graph(self.num_agents)
-        elif network_type == "erdos_renyi":
-            return nx.erdos_renyi_graph(self.num_agents, 0.1)
-        elif network_type == "barabasi_albert":
-            return nx.barabasi_albert_graph(self.num_agents, 1)
+        elif topology == "star":
+            return nx.star_graph(self.num_agents - 1)
+        elif topology == "wheel":
+            return nx.wheel_graph(self.num_agents - 1)
         else:
-            raise ValueError(f"Invalid network type: {network_type}")
+            raise ValueError(f"Invalid network type: {topology}")
 
     def step(self):
         """
@@ -144,6 +143,8 @@ class CollectiveLearningModel(Model):
         while run_alignment:
 
             self.alignment_time += 1
+            print("="*80)
+            print(f"Alignment round {self.alignment_time}") 
 
             self.rng.shuffle(self.agents_list)
             for agent in self.agents_list:
