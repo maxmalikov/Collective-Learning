@@ -135,7 +135,13 @@ class CollectiveLearningModel(Model):
         for a in self.agents_Pre_reset:
             l.append(self.agents_Pre_reset[a][1])
         self.reset()
-
+    def viz_agent_attribute(self,attribute= "Choice"):
+        plt.figure()
+        self.datacollector.get_agent_vars_dataframe()[attribute].hist()
+        plt.title(f"{attribute} distribution (step {self.steps})")
+        plt.xlabel(attribute)
+        plt.ylabel("Frequency")
+        plt.show()
     def alignment_phase(self) -> None:
         """
         Align the opinions of the agents.
