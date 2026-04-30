@@ -10,7 +10,7 @@ class CollectiveAgent(Agent):
 
     def __init__(self, model, node, num_digits, rng):
         super().__init__(model)
-
+        
         self.node = node
         self.rng_ = rng
         self.num_digits = num_digits
@@ -204,7 +204,6 @@ class CollectiveAgent(Agent):
     
             # --- HINT GENERATION (pre-guess pruning) ---
             if self.choice == group_choice or i < alignment_threshold:
-    
                 # 0 -> even/odd
                 if self.choice == 0:
                     if target % 2 == 0:
@@ -245,6 +244,7 @@ class CollectiveAgent(Agent):
     
             # make a guess
             guess = self.rng_.choice(available)
+            print(guess)
             self.guesses[i] = guess
             mem.append(guess)
     
