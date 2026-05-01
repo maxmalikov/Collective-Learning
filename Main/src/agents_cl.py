@@ -182,7 +182,7 @@ class CollectiveAgent(Agent):
     def solve_puzzle(self):
         # initialize puzzle if needed
         if self.needs_new:
-            self.targets = [self.rng_.integers(0, 9, 1) for _ in range(self.num_digits)]
+            self.targets = [self.rng_.integers(0, 10, 1) for _ in range(self.num_digits)]
             self.guesses = [None] * self.num_digits
             self.memories = [[] for _ in range(self.num_digits)]
             self.done_flags = [False] * self.num_digits
@@ -244,7 +244,7 @@ class CollectiveAgent(Agent):
     
             # make a guess
             guess = self.rng_.choice(available)
-            print(guess)
+            #print(guess)
             self.guesses[i] = guess
             mem.append(guess)
     
