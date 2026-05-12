@@ -22,7 +22,7 @@ class CollectiveAgent(Agent):
         self.n_choices = model.n_choices
         self.expertise_list = rng.random(self.n_choices)
         self.choice = np.argmax(self.expertise_list)
-        self.stubbornness = self.expertise_list[self.choice]
+        self.experience = self.expertise_list[self.choice]
         self.choices_count = np.zeros(self.n_choices)
         self.rewards_avg = np.zeros(self.n_choices)
 
@@ -47,7 +47,7 @@ class CollectiveAgent(Agent):
         table.add_row(["Agent ID", self.unique_id])
         table.add_row(["Choice", self.choice])
         table.add_row(["Strength", f"{self.strength:.3f}"])
-        table.add_row(["Stubbornness", f"{self.stubbornness:.3f}"])
+        table.add_row(["Stubbornness", f"{self.experience:.3f}"])
         table.add_row(["Solved puzzles", self.done_puzzles])
         table.add_row(["Targets", self.targets])
         table.add_row(["Guesses", self.guesses])
@@ -68,18 +68,22 @@ class CollectiveAgent(Agent):
         """
         # Initialize impact vector
         impact = np.zeros(self.model.n_choices)
+        added_strength = np.zeros(self.model.n_choices)
 
         # Get neighbors and calculate impact based on their choices and strengths
         neighbors = self.model.grid.get_neighbors(self.node, include_center=False)
         for n in neighbors:
-            impact[n.choice] += n.strength
+            impact[n.choice] += n.strength * n.experience
+            added_strength[n.choice] += n.strength
+
+        impact = np.divide(impact, added_strength, out=np.zeros_like(impact), where=added_strength!=0)
 
         # Compare impact with own choice and strength
-        modifier = 1 - self.stubbornness
-        impact *= modifier
-        impact[self.choice] += self.stubbornness
+        # modifier = 1 - self.experience
+        # impact *= modifier
+        impact[self.choice] += self.experience
         print("-"*60)
-        print(f"Agent {self.node} (stubbornness: {self.stubbornness:.3f}) --- (strength: {self.strength:.3f}) --- (neighbors: {len(neighbors)}):")
+        print(f"Agent {self.node} (experience: {self.experience:.3f}) --- (strength: {self.strength:.3f}) --- (neighbors: {len(neighbors)}):")
         print(f"\tImpacts before softmax: {impact}")
 
         # Create probability distribution over choices using robust softmax
@@ -88,7 +92,7 @@ class CollectiveAgent(Agent):
 
         # Update choice and stubbornness based on impact
         self.choice = self.impact_choice(impact)
-        self.stubbornness = self.expertise_list[self.choice]
+        self.experience = self.expertise_list[self.choice]
 
     def impact_choice(self, impact:List[float]) -> int:
         if self.sampling is True:
@@ -110,7 +114,7 @@ class CollectiveAgent(Agent):
         self.choice = np.random.choice(np.arange(self.model.n_choices), p = self.expertise_list)
         
         # expertise for each choice
-        self.stubbornness = self.expertise_list[self.choice]
+        self.experience = self.expertise_list[self.choice]
 
         # puzzle state
         self.targets = []
