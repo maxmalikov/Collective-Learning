@@ -21,7 +21,8 @@ class CollectiveAgent(Agent):
         # expertise for each choice
         self.n_choices = model.n_choices
         self.expertise_list = rng.random(self.n_choices)
-        self.choice = np.argmax(self.expertise_list)
+        self.sampling = False
+        self.choice = self.impact_choice(self.expertise_list)
         self.experience = self.expertise_list[self.choice]
         self.choices_count = np.zeros(self.n_choices)
         self.rewards_avg = np.zeros(self.n_choices)
@@ -38,20 +39,19 @@ class CollectiveAgent(Agent):
         self.reward_plot = 0
 
         self.debug_mode = False
-        self.sampling = False
 
     def __str__(self):
         table = PrettyTable()
         table.field_names = ["Property", "Value"]
 
         table.add_row(["Agent ID", self.unique_id])
-        table.add_row(["Choice", self.choice])
         table.add_row(["Strength", f"{self.strength:.3f}"])
-        table.add_row(["Stubbornness", f"{self.experience:.3f}"])
+        table.add_row(["Expertise List", self.expertise_list])
+        table.add_row(["Experience", f"{self.experience:.3f}"])
+        table.add_row(["Choice", self.choice])
         table.add_row(["Solved puzzles", self.done_puzzles])
         table.add_row(["Targets", self.targets])
         table.add_row(["Guesses", self.guesses])
-        table.add_row(["Expertise List", self.expertise_list])
 
         return table.get_string()
 
@@ -76,21 +76,26 @@ class CollectiveAgent(Agent):
             impact[n.choice] += n.strength * n.experience
             added_strength[n.choice] += n.strength
 
-        impact = np.divide(impact, added_strength, out=np.zeros_like(impact), where=added_strength!=0)
+        # impact = np.divide(impact, added_strength, out=np.zeros_like(impact), where=added_strength!=0)
+        if self.debug_mode:
+            print("-"*60)
+            print(f"Agent {self.node} Impacts before stubbornness: {impact}")
 
         # Compare impact with own choice and strength
         # modifier = 1 - self.experience
         # impact *= modifier
         impact[self.choice] += self.experience
-        print("-"*60)
-        print(f"Agent {self.node} (experience: {self.experience:.3f}) --- (strength: {self.strength:.3f}) --- (neighbors: {len(neighbors)}):")
-        print(f"\tImpacts before softmax: {impact}")
+        if self.debug_mode:
+            print("-"*60)
+            print(f"Agent {self.node} (experience: {self.experience:.3f}) --- (strength: {self.strength:.3f}) --- (neighbors: {len(neighbors)}):")
+            print(f"\tImpacts before softmax: {impact}")
 
         # Create probability distribution over choices using robust softmax
         impact = self.robust_softmax(impact)
-        print(f"\tImpacts after softmax: {impact}")
+        if self.debug_mode:
+            print(f"\tImpacts after softmax: {impact}")
 
-        # Update choice and stubbornness based on impact
+        # Update choice and experience based on social impact
         self.choice = self.impact_choice(impact)
         self.experience = self.expertise_list[self.choice]
 
@@ -110,8 +115,8 @@ class CollectiveAgent(Agent):
         """        
         
         # UPDATE SELF CHOICE
-        self.expertise_list = self.get_stubbornness_vector()
-        self.choice = np.random.choice(np.arange(self.model.n_choices), p = self.expertise_list)
+        self.expertise_list = self.get_experience_vector()
+        self.choice = self.impact_choice(self.expertise_list)
         
         # expertise for each choice
         self.experience = self.expertise_list[self.choice]
@@ -138,7 +143,7 @@ class CollectiveAgent(Agent):
     
         return self.model.explore_param * np.sqrt(np.log(t) / n)
     
-    def get_stubbornness_vector(self):
+    def get_experience_vector(self):
 
         values = np.zeros(self.model.n_choices)
     
@@ -159,7 +164,7 @@ class CollectiveAgent(Agent):
         Robust softmax function.
         """
         x = x - np.max(x)
-        # x *= x * 1 / self.model.temperature
+        x = x * 1 / self.model.temperature
         exp_x = np.exp(x)
         return exp_x / np.sum(exp_x)
     

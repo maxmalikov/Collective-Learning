@@ -36,6 +36,8 @@ class CollectiveLearningModel(Model):
         self.rng = np.random.default_rng(seed=seed)
         self.seed = seed
 
+        self.temperature = 1.0
+
         # globals for alignment phase
         self.alignment_max_time = alignment_max_time      
         self.consensus_threshold = consensus_threshold
@@ -100,7 +102,7 @@ class CollectiveLearningModel(Model):
                 "node": "node",
                 "Choice": "choice",
                 "Strength": "strength",
-                "Stubbornness": "stubbornness",
+                "Experience": "experience",
                 "Solved": "done_puzzles",
                 "Reward": "reward_plot",
             }
@@ -135,6 +137,7 @@ class CollectiveLearningModel(Model):
         for a in self.agents_Pre_reset:
             l.append(self.agents_Pre_reset[a][1])
         self.reset()
+
     def viz_agent_attribute(self,attribute= "Choice"):
         plt.figure()
         self.datacollector.get_agent_vars_dataframe()[attribute].hist()
@@ -142,6 +145,7 @@ class CollectiveLearningModel(Model):
         plt.xlabel(attribute)
         plt.ylabel("Frequency")
         plt.show()
+        
     def alignment_phase(self) -> None:
         """
         Align the opinions of the agents.
@@ -153,8 +157,8 @@ class CollectiveLearningModel(Model):
         while run_alignment:
 
             self.alignment_time += 1
-            print("="*80)
-            print(f"Alignment round {self.alignment_time}") 
+            # print("="*80)
+            # print(f"Alignment round {self.alignment_time}") 
 
             self.rng.shuffle(self.agents_list)
             for agent in self.agents_list:
