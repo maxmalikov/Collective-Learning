@@ -181,7 +181,9 @@ class CollectiveAgent(Agent):
     def calculate_beta(self):
         time_social = self.model.alignment_time
         time_work = self.model.work_duration
-        return (self.delta * time_social) / (self.delta * time_social + (1 - self.delta) * time_work)
+        self.discounted_learning_rate = (time_social / self.model.alignment_time)*0.1
+        return (self.delta * time_social) / (self.delta * time_social + (self.discounted_learning_rate*(1 - self.delta) * time_work))
+        #an alternative method is that make the total time of both phases shared with a cutoff for the first phase((alignment_Time-cutoff)+work_phase =30 this way there is a indirect penelty for longer alignement phases and then adjust the discounted the learning rate by how much time_social takes)
 
     def calculate_target(self, beta):
         reward = self.get_reward()
