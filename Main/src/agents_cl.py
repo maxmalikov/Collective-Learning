@@ -24,15 +24,19 @@ class CollectiveAgent(Agent):
         self.sampling = False
         self.choice = self.impact_choice(self.expertise_list)
         self.experience = self.expertise_list[self.choice]
+        self.impact = np.zeros(self.n_choices)
         self.choices_count = np.zeros(self.n_choices)
         self.rewards_avg = np.zeros(self.n_choices)
+
+        # For learning from social input and experience
+        self.delta = 0.5 # balance between social impact and reward in target calculation
+        self.alpha = 0.1 # learning rate for updating expertise based on reward
 
         # puzzle state
         self.targets = []
         self.guesses = []
         self.memories = []
         self.done_flags = []
-
         self.done_count = 0
         self.needs_new = True
         self.done_puzzles = 0
@@ -91,13 +95,14 @@ class CollectiveAgent(Agent):
             print(f"\tImpacts before softmax: {impact}")
 
         # Create probability distribution over choices using robust softmax
-        impact = self.robust_softmax(impact)
+        distribution = self.robust_softmax(impact)
         if self.debug_mode:
-            print(f"\tImpacts after softmax: {impact}")
+            print(f"\tImpacts after softmax: {distribution}")
 
         # Update choice and experience based on social impact
-        self.choice = self.impact_choice(impact)
+        self.choice = self.impact_choice(distribution)
         self.experience = self.expertise_list[self.choice]
+        self.impact = impact
 
     def impact_choice(self, impact:List[float]) -> int:
         if self.sampling is True:
@@ -168,16 +173,24 @@ class CollectiveAgent(Agent):
         exp_x = np.exp(x)
         return exp_x / np.sum(exp_x)
     
-    def update_reward(self, reward):
-        i = self.choice
+    def update_reward(self):
+        beta = self.calculate_beta()
+        target = self.calculate_target(beta)
+        self.expertise_list[self.choice] += self.alpha * (target - self.expertise_list[self.choice])
+
+    def calculate_beta(self):
+        time_social = self.model.alignment_time
+        time_work = self.model.work_duration
+        return (self.delta * time_social) / (self.delta * time_social + (1 - self.delta) * time_work)
+
+    def calculate_target(self, beta):
+        reward = self.get_reward()
+        social_impact = self.impact[self.choice]
+        target = beta * social_impact + (1 - beta) * reward
+        return target
     
-        self.choices_count[i] += 1
-    
-        current_count = self.choices_count[i]
-        current_value = self.rewards_avg[i]
-    
-        # incremental average
-        self.rewards_avg[i] += (reward - current_value) / current_count
+    def get_reward(self):
+        return self.done_puzzles
 
     def start_new_puzzle(self):
         self.targets = self.model.generate_targets()
@@ -186,7 +199,9 @@ class CollectiveAgent(Agent):
         self.needs_new = False
         
     def update_choice(self):
-        pass
+        distribution = self.robust_softmax(self.expertise_list)
+        self.choice = self.impact_choice(distribution)
+        self.experience = self.expertise_list[self.choice]
 
     def solve_puzzle(self):
         # initialize puzzle if needed

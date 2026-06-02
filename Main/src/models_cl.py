@@ -211,7 +211,7 @@ class CollectiveLearningModel(Model):
         Learn phase.
         """
         for agent in self.agents_list:
-            agent.update_reward(agent.done_puzzles)
+            agent.update_reward()
             agent.update_choice()
             
     def reset(self):
